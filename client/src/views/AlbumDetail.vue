@@ -143,6 +143,7 @@
         @photoDeleted="handlePhotoDeleted"
         @update:currentIndex="updateCurrentPhotoIndex"
         :preloadCount="3"
+        @download="handleDownload"
       />
     </div>
 
@@ -169,8 +170,9 @@ import { usePhotoUpload } from '../composables/usePhotoUpload';
 import PhotoViewer from '../components/PhotoViewer.vue';
 import { ElMessage, ElMessageBox, ElProgress } from 'element-plus';
 import { Check } from '@element-plus/icons-vue';
-import { getPhotoUrl } from '@/utils/photoUtils';  // 修改这行
+import { getPhotoUrl } from '../utils/photoUtils';  // 修正导入路径
 import axios from 'axios';
+import { usePhotoDownload } from '../composables/usePhotoDownload';
 
 // 添加 Photo 接口定义
 interface Photo {
@@ -216,6 +218,8 @@ const { isUploading, uploadProgress, uploadPhotos } = usePhotoUpload(albumId);
 const showUploadProgress = ref(false);
 
 const lastScrollPosition = ref(0);
+
+const { downloadPhoto, isDownloading, error: downloadError } = usePhotoDownload();
 
 onMounted(async () => {
   await albumStore.fetchAlbum(albumId);
@@ -346,7 +350,9 @@ async function downloadSelectedPhotos() {
     return;
   }
   try {
-    await photoStore.downloadPhotos(selectedPhotos.value);
+    for (const photoId of selectedPhotos.value) {
+      await downloadPhoto(photoId);
+    }
     ElMessage.success('照片下载成功');
   } catch (error) {
     console.error('下载照片失败:', error);
@@ -412,6 +418,11 @@ function formatProgress(percentage: number): string {
   }
   return `${percentage}%`;
 }
+
+// 在需要下载照片的地方调用 downloadPhoto 函数
+const handleDownload = (photoId: string) => {
+  downloadPhoto(photoId);
+};
 
 // ... 其他必要的方法
 </script>

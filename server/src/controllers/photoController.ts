@@ -393,9 +393,15 @@ export async function updatePhotoDescription(req: Request, res: Response) {
   }
 }
 
-export async function downloadOriginalPhoto(req: Request, res: Response) {
+export const downloadOriginalPhoto = async (req: Request, res: Response) => {
+  console.log('Entering downloadOriginalPhoto function');
   try {
-    const { id } = req.params;
+    let id;
+    if (req.method === 'POST') {
+      id = req.body.photoId; // 假设 POST 请求中的 photoId 在请求体中
+    } else {
+      id = req.params.id; // GET 请求中的 id 在 URL 参数中
+    }
     console.log('Downloading photo with id:', id);
     const photo = await Photo.findById(id);
     if (!photo) {
@@ -406,34 +412,21 @@ export async function downloadOriginalPhoto(req: Request, res: Response) {
     const filePath = getPhotoPath(path.basename(photo.path));
     console.log('File path:', filePath);
     
-    // 检查文件是否存
     if (!fs.existsSync(filePath)) {
       console.log('File does not exist:', filePath);
       return res.status(404).json({ message: '照片文件不存在' });
     }
 
-    // 获取文件信息
     const stat = fs.statSync(filePath);
-    console.log('File stats:', stat);
-
-    // 获取文件的 MIME 类型
     const mimeType = mime.lookup(filePath) || 'application/octet-stream';
 
-    // 设置响应头
     res.setHeader('Content-Length', stat.size);
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(photo.filename)}`);
-    console.log('Response headers set:', {
-      'Content-Length': stat.size,
-      'Content-Type': mimeType,
-      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(photo.filename)}`
-    });
 
-    // 使用 fs.createReadStream 来发送文件
     const fileStream = fs.createReadStream(filePath);
     fileStream.pipe(res);
 
-    // 错误处理
     fileStream.on('error', (error) => {
       console.error('文件流错误:', error);
       if (!res.headersSent) {
@@ -441,7 +434,6 @@ export async function downloadOriginalPhoto(req: Request, res: Response) {
       }
     });
 
-    // 完成处理
     fileStream.on('end', () => {
       console.log('文件下载完成');
     });
@@ -449,10 +441,10 @@ export async function downloadOriginalPhoto(req: Request, res: Response) {
   } catch (error) {
     console.error('下载原始照片失败:', error);
     if (!res.headersSent) {
-      res.status(500).json({ message: '原始照片失败', error: (error as Error).message });
+      res.status(500).json({ message: '下载原始照片失败', error: (error as Error).message });
     }
   }
-}
+};
 
 export async function deletePhotos(req: Request, res: Response) {
   try {
